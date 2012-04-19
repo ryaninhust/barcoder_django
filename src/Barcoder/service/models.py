@@ -130,23 +130,23 @@ class UserManager(AccountManager):
         
 class User(models.Model):
     account_email = models.EmailField(unique=True)
-    sex=models.BooleanField()
+    sex=models.NullBooleanField()
     
-    birthday=models.DateTimeField()
-    university_name=models.CharField(max_length=30)
-    university_year=models.IntegerField(max_length=11)
-    university_department=models.CharField(max_length=30)
+    birthday=models.DateTimeField(null=True)
+    university_name=models.CharField(max_length=30,null=True)
+    university_year=models.IntegerField(max_length=11,null=True)
+    university_department=models.CharField(max_length=30,null=True)
 #    uid=models.CharField(max_length=10,unique=True)
     name = models.CharField(max_length=16)
 #    email = models.EmailField()
-    phone = models.CharField(max_length=15)
-    head_url=models.URLField()
-    personal_page = models.URLField()
+    phone = models.CharField(max_length=15,null=True)
+    head_url=models.URLField(null=True)
+    personal_page = models.URLField(null=True)
     password = models.CharField(max_length=128)
 #    department=models.CharField(max_length=30)
 #    class_no=models.CharField(max_length=30)
-    last_login = models.DateTimeField()
-    joined_time = models.DateTimeField()
+    last_login = models.DateTimeField(null=True)
+    joined_time = models.DateTimeField(default=datetime.now())
     #是否为组织方管理员    
     is_host=models.BooleanField(default=False)
     objects = UserManager()
@@ -170,6 +170,8 @@ class User(models.Model):
         pass    
 class OrganizationManager(models.Manager):
     def organization_create(self, **kwargs):
+        if kwargs['admin']:
+            return None
         kwargs['admin'].is_host=True
         kwargs['admin'].save()
         kwargs['create_time']=datetime.now()
@@ -239,11 +241,11 @@ class Activity(models.Model):
     f_date=models.DateTimeField()
     addr=models.CharField(max_length=50)
     barcoder=models.IntegerField(max_length=15)
-    location=models.ForeignKey(Location,blank=True)
+    location=models.ForeignKey(Location,null=True)
     timestamp = models.DateTimeField(default=datetime.now())
-    url = models.URLField(blank=True)
-    email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=30,blank=True)
+    url = models.URLField(null=True)
+    email = models.EmailField(null=True)
+    phone = models.CharField(max_length=30,null=True)
     host = models.ManyToManyField(Organization, through='Activity_Organization')
     participant = models.ManyToManyField(User, through="User_Activity")
     tag=models.ManyToManyField(Activitytag,through='Tag_Activity')

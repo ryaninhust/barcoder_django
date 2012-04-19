@@ -66,7 +66,10 @@ def condition(etag_func=None, last_modified_func=None):
             else:
                 res_etag = None
             if last_modified_func:
-                dt = last_modified_func(*args, **kwargs)
+                try:
+                    dt = last_modified_func(*args, **kwargs)
+                except Exception :
+                    dt=None
                 if dt:
                     res_last_modified = timegm(dt.utctimetuple())
                 else:

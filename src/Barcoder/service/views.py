@@ -56,7 +56,11 @@ def get_partly_result(raw_result,request):
    
 #json转换成字典参数
 def json_to_kwarg(json):
-    return simplejson.loads(json)
+    
+        return simplejson.loads(json)
+    
+
+        
 
 #条件查询的控制参数（未完成）
 def activity_last_mod_func():
@@ -65,7 +69,10 @@ def activity_last_mod_func():
 
 #json转换成实体
 def update_from_json(model,json):
+
     data=simplejson.loads(json)
+#    except ValueError:
+#        pass
     for key,value in data.items():
         print key
         if key =='password':
@@ -79,6 +86,7 @@ def update_from_json(model,json):
                 pass
             except AttributeError:
                 raise AttributeError
+            
            
     return model
 
@@ -223,7 +231,8 @@ class User_activity_list(object):
     def do_GET(self):
         if self.user!=self.auth_models:
             return HttpResponseError(status_code=status_code['UNAUTHORIZED'],error_code=2)
-        json=serializers.serialize(('json',), self.user.activity_set.filter(part_level_dic['participant_cancel']))
+        
+        json=serializers.serialize('json',self.user.activity_set.filter(exist_flag=True))
         return HttpResponse(json,mimetype='application/json')
     @login_required()
     def do_POST(self):
@@ -255,17 +264,17 @@ class User_activity_detail(object):
         return callbackmethod()
     
     @login_required()
-    @permission_checked('activity')
     def do_GET(self):
-        if self.user!=self.auth_models:
+        if self.user!=self.auth_models or self.activity  not in self.user.activity_set.filter(exist_flag=True):
             return HttpResponseError(status_code=status_code['UNAUTHORIZED'],error_code=2)
+        
         json=serializers.serialize('json', [get_object_or_404(User_Activity,user=self.auth_models,activity=self.activity)])
         response=HttpResponse(json,mimetype="application/json")
         return response
+    
     @login_required()
-    @permission_checked('activity')
     def do_PUT(self):
-        if self.user!=self.auth_models:
+        if self.user!=self.auth_models or self.activity not in self.user.activity_set.filter(exist_flag=True):
             return HttpResponseError(status_code=status_code['UNAUTHORIZED'],error_code=2)
         model=get_object_or_404(User_Activity,user=self.auth_models,activity=self.activity)
         try:
@@ -276,10 +285,10 @@ class User_activity_detail(object):
         else:
             pre_model.save()
             return HttpResponse(serializers.serialize('json', [pre_model]),mimetype="application/json")
+        
     @login_required()
-    @permission_checked('activity')
     def do_DELETE(self):
-        if self.user!=self.auth_models:
+        if self.user!=self.auth_models or self.activity not in self.user.activity_set.filter(exist_flag=True):
             return HttpResponseError(status_code=status_code['UNAUTHORIZED'],error_code=2)
         
         model=get_object_or_404(User_Activity,activity=self.activity,user=self.user)
@@ -536,7 +545,7 @@ class Activty_list(object):
             if per_model==None:
                 return HttpResponseBadRequest()
             pass
-        except Exception:
+        except AttributeError:
             return HttpResponseBadRequest()
         
         Activity_Organization.objects.create(activity=per_model,organization=self.auth_model_organization,level=1)
@@ -581,6 +590,10 @@ class Activity_detail(object):
             pass
         except KeyError:
             return HttpResponseBadRequest()
+        except ValueError:
+            return HttpResponseBadRequest()
+
+        
         else:
             updated_model.save()
             json=serializers.serialize('json',[Activity.objects.get(id=updated_model.id)])
@@ -613,7 +626,7 @@ class Organization_detail(object):
             return HttpResponseNotAllowed(allowed_method)
         return callbackmethod()
     def do_GET(self):
-        self.organization.password='secret'
+        
         json=serializers.serialize('json', [self.organization])
         response=HttpResponse(json,mimetype='application/json')
         response.status_code=200
@@ -623,7 +636,10 @@ class Organization_detail(object):
     def do_PUT(self):
         if self.auth_model_organization!=self.organization:
             return HttpResponseBadRequest()
-        pre_model=update_from_json(self.organization, self.request.raw_post_data)
+        try:
+            pre_model=update_from_json(self.organization, self.request.raw_post_data)
+        except Exception:
+            return HttpResponseError(status_code=status_code['BAD REQUEST'],error_code=6)
         pre_model.save()
         response=HttpResponse(serializers.serialize('json', [Organization.objects.get(id=pre_model.id)]),mimetype="application/json")
         response.status_code=202
@@ -685,15 +701,15 @@ class Activity_user_detail():
             pass
         return callbackmethod(self)
     def do_GET(self):
-        activity_user=get_object_or_404(User_Activity,User=self.user,Activity=self.activity)
+        activity_user=get_object_or_404(User_Activity,user=self.user,activity=self.activity)
         json=serializers.serialize('json', [activity_user])
         response=HttpResponse(json,mimetype='application/json')
-        response.status_code=status_code['ok']        
+        response.status_code=status_code['OK']        
         return response
     @login_required()
     @admin_checked(urlmodel=True)
     def do_PUT(self):
-        activity_user=get_object_or_404(User_Activity,User=self.user,Activity=self.activity)
+        activity_user=get_object_or_404(User_Activity,user=self.user,activity=self.activity)
         try:
             activity_user=update_from_json(activity_user, self.request.raw_post_data)
         except  AttributeError:
@@ -708,7 +724,7 @@ class Activity_user_detail():
     @login_required()
     @admin_checked(urlmodel=True)    
     def do_DELETE(self):
-        activity_user=get_object_or_404(User_Activity,User=self.user,Activity=self.activity)
+        activity_user=get_object_or_404(User_Activity,user=self.user,activity=self.activity)
         activity_user.part_level=part_level_dic['participant_cancel']
         activity_user.save()
         response=HttpResponse()
@@ -729,6 +745,7 @@ class Activity_tag_list(object):
             allowed_method=[m.lstrip("do_") for m in dir(self) if m.startswith("do_")]
             return HttpResponseNotAllowed(allowed_method)
         return callbackmethod(self)    
+    #需要改进
     def do_GET(self):
         tag_list=self.activity.tag.filter(exsit_flag=True)
         json=serializers.serialize('json', tag_list)
@@ -757,7 +774,7 @@ class Activity_user_list(object):
         self.request=request
         self.activity=get_object_or_404(Activity,id=activity_id,exist_flag=1) 
         try:
-            callbackmethod = getattr(Activity_detail, "do_%s" % request.method)
+            callbackmethod = getattr(Activity_user_list, "do_%s" % request.method)
             pass
         except AttributeError:
             allowed_method = [m.lstrip("do_") for m in dir(self) if m.startswith("do_")]
@@ -786,7 +803,7 @@ class Activity_comment_list(object):
             return HttpResponseNotAllowed(allowed_method)
         return callbackmethod(self)
     def do_GET(self):
-        activity_comments_raw=self.activity.comment_set.filter(exsit_flag=True,**querydict_to_dict(self.request))
+        activity_comments_raw=self.activity.comment_set.filter(exist_flag=True,**querydict_to_dict(self.request))
         activity_comments=get_partly_result(activity_comments_raw, self.request)
         json=serializers.serialize('json', activity_comments)
         response=HttpResponse(json,mimetype='application/json')
@@ -795,12 +812,17 @@ class Activity_comment_list(object):
     
     @login_required()
     def do_POST(self):
-        result_dict=json_to_kwarg(self.request.raw_post_data)
-        comment=Comment.objects.comment_create(result_dict,activity=self.activity,user=self.auth_models)
-        json=serializers.serialize('json', [Comment.objects.get(id=comment.id)])
-        response=HttpResponse(json,mimetype='application/json')
-        response.status_code=status_code['CREATED']
-        return response
+        try:
+            result_dict=json_to_kwarg(self.request.raw_post_data)
+            comment=Comment.objects.comment_create(result_dict,activity=self.activity,user=self.auth_models)
+        except Exception:
+            return HttpResponseError(status_code=405,error_code=6)
+        
+        else:
+            json=serializers.serialize('json', [Comment.objects.get(id=comment.id)])
+            response=HttpResponse(json,mimetype='application/json')
+            response.status_code=status_code['CREATED']
+            return response
 class Comment_detail(object):    
         def __call__(self,request,comment_id):
             self.request=request
